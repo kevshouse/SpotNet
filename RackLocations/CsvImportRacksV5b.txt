@@ -1,0 +1,52 @@
+CREATE CONSTRAINT ON (rack:Rack) ASSERT rack.code IS UNIQUE
+CREATE CONSTRAINT ON (row:Row) ASSERT row.code IS UNIQUE
+CREATE CONSTRAINT ON (h:Hall) ASSERT h.code IS UNIQUE;
+CREATE CONSTRAINT ON (f:flr) ASSERT f.code IS UNIQUE;
+CREATE CONSTRAINT ON (n:Building) ASSERT n.name IS UNIQUE;
+
+/* It is wise to execute the above Constraint commands before the rest of this
+script, they need to be established before the script runs! */
+
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/RackLocations/RackLocationsB.csv"
+AS line /* Variable to hold our CSV */
+WITH line
+LIMIT 500
+
+/* FIND or Create Rack Nodes */
+MERGE (rack:Rack{raCode:(line.Rack + line.Row + line.Front +
+line.Rear + line.TileNumber + line.Hall + line.Floor + line.Building)})
+ON CREATE SET
+rack.name = (line.Building + "-Fl" + line.Floor + "-" + line.Rack),
+rack.Front = line.Front, rack.Back = line.Back, 
+rack.TileNumber = line.TileNumber,
+rack.Tag = "Rack"
+
+/* Find or Create Row Nodes */
+MERGE (row:Row{roCode:(line.Row + line.Front + line.Hall + line.Floor + line.Building)})
+ON CREATE SET
+row.name = (line.Building + "-Fl" + line.Floor + "-" + line.Rack),
+row.Front = line.Front, row.Tag = "Row"
+
+/* Find or CREATE Hall Nodes */
+MERGE (hall:Hall{halCode:(line.Building + "-Fl" + line.Floor + "-H-" + line.Hall) })
+ON CREATE SET hall.number = "H" + line.Hall, hall.Tag = "Hall", 
+hall.name = "Hall " + line.Hall
+
+/* Find or Create Floor Nodes */
+MERGE (flr:flr{flrCode:(line.Building + "-Fl-" + line.Floor)})
+ON CREATE SET flr.number = "F" + line.Floor, flr.Tag = "Flr",
+flr.name = "Floor " + line.Floor
+
+/* Find or Create Building Nodes */
+MERGE (build:Building{name:(line.Building)})
+ON CREATE SET build.name = line.Building,build.Tag = "Building"
+WITH rack,row,hall,flr,build
+
+/* Create and wire up Relationships */
+CREATE UNIQUE  (build)<-[r5:HallIsIn]-(hall)<-[r6:RackIsIn]-(rack)
+CREATE UNIQUE (rack)-[r1:PartOf]->(row)-[r2:RowIsIn]->(hall)-[r3:HallIsOn]->(flr)-[r4:PartOf]->(build)
+
+RETURN rack,row,hall,flr,build
+
