@@ -1,0 +1,53 @@
+CREATE CONSTRAINT ON (rack:Rack) ASSERT rack.code IS UNIQUE
+CREATE CONSTRAINT ON (row:Row) ASSERT row.code IS UNIQUE
+CREATE CONSTRAINT ON (h:Hall) ASSERT h.code IS UNIQUE;
+CREATE CONSTRAINT ON (f:flr) ASSERT f.code IS UNIQUE;
+CREATE CONSTRAINT ON (n:Building) ASSERT n.name IS UNIQUE;
+
+
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM
+"file:///C:/Users/Kevin/OneDrive/Documents/Uni/Project/Notes/CypherParts/RackLocations3.csv"
+AS line
+WITH line
+LIMIT 500
+
+
+MERGE (rack:Rack{raCode:(line.Rack + line.Row + line.Front +
+line.Rear + line.TileNumber + line.Hall + line.Floor + line.Building)})
+ON CREATE SET
+rack.name = (line.Building + "-Fl-" + line.Floor + "-" + line.Rack),
+rack.Front = line.Front, rack.Back = line.Back, 
+rack.TileNumber = line.TileNumber,
+rack.Tag = "Rack"
+
+MERGE (row:Row{roCode:(line.Row + line.Front + line.Hall + line.Floor + line.Building)})
+ON CREATE SET
+row.name = (line.Building + "-Fl-" + line.Floor + "-" + line.Rack),
+row.Front = line.Front, row.Tag = "Row"
+
+MERGE (hall:Hall{halCode:(line.Building + "-Fl-" + line.Floor + "-H-" + line.Hall) })
+ON CREATE SET hall.number = "H" + line.Hall, hall.Tag = "Hall", 
+hall.name = "Hall " + line.Hall
+
+
+MERGE (flr:flr{flrCode:(line.Building + "-Fl-" + line.Floor)})
+ON CREATE SET flr.number = "F" + line.Floor, flr.Tag = "flr",
+flr.name = "flr " + line.Floor
+
+
+MERGE (build:Building{name:(line.Building)})
+ON CREATE SET build.name = line.Building,build.Tag = "Building"
+WITH rack,row,hall,flr,build
+
+CREATE UNIQUE  (build)<-[r5:HallIsIn]-(hall)<-[r6:RackIsIn]-(rack)
+CREATE UNIQUE (rack)-[r1:PartOf]->(row)-[r2:RowIsIn]->(hall)-[r3:HallIsOn]->(flr)-[r4:PartOf]->(build)
+
+RETURN rack,row,hall,flr,build
+
+
+
+///////////////////////
+MERGE (hall:Hall{code:(line.Building + "-Fl-" + line.Floor + "-H-" + line.Hall) })
+ON CREATE SET hall.number = "H" + line.Hall, hall.Tag = "Hall", 
+hall.name = "Hall " + line.Hall
