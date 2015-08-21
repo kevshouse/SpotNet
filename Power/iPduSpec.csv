@@ -1,6 +1,6 @@
 MasterCB,NomMcbInputVoltage,McbSupplyVoltage,Phase,MaxLineCurrent,Load,ModuleCB,OutputReceptacle,OprSupplyVoltage,ReceptacleType,MaxCurrent,OprLoad
 MCB1,400,0,L1,32,0,1,1,0,"Locking IEC 60320 C19 2-pole, 3-wire",16,0
-MCB1,400,0,L0,32,0,1,2,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
+MCB1,400,0,L1,32,0,1,2,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
 MCB1,400,0,L1,32,0,1,3,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
 MCB1,400,0,L1,32,0,1,4,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
 MCB1,400,0,L1,32,0,1,5,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
