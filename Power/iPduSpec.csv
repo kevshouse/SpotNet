@@ -13,7 +13,7 @@ MCB1,400,0,L2,32,0,2,11,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
 MCB1,400,0,L2,32,0,2,12,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
 MCB1,400,0,L2,32,0,2,13,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
 MCB1,400,0,L2,32,0,2,14,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
-MCB1,400,0,L2,32,0,3,15,0,"Locking IEC 60320 C19 2-pole, 3-wire",16,0
+MCB1,400,0,L3,32,0,3,15,0,"Locking IEC 60320 C19 2-pole, 3-wire",16,0
 MCB1,400,0,L3,32,0,3,16,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
 MCB1,400,0,L3,32,0,3,17,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
 MCB1,400,0,L3,32,0,3,18,0,"Locking IEC 60320 C13 2-pole, 3-wire",10,0
