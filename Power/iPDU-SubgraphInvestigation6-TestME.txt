@@ -1,0 +1,46 @@
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Cypher to ETL data into Neo4j to load iPDU (inteligent Power Distribution Unit)  ---"*/
+/*"--- internal configuration and instance data 										---"*/ 
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Kevin Anderson 25/08/2015 														---"*/
+/*"--- Sprint Job ID17 Define Rack to PDU relationships                                 ---"*/
+/*"--- Extended to Power Busways, PDUs, and UPSs                                        ---"*/
+/*"----------------------------------------------------------------------------------------"*/
+
+/*"--- Before First Use	 --------------------------------------------------------------------------------"*/
+/*"--- The Following Constraint must be active before submitting the following queries                ---"*/
+/*"------------------------------------------------------------------------------------------------------"*/
+CREATE CONSTRAINT ON (masterCB:MasterCB) ASSERT masterCB.majorSerialNumber IS UNIQUE;
+CREATE CONSTRAINT ON (moduleCB:ModuleCB) ASSERT moduleCB.majorSerialNumber IS UNIQUE;
+CREATE CONSTRAINT ON (ipdu:iPdu) ASSERT ipdu.SerialNumber IS UNIQUE;
+CREATE CONSTRAINT ON (controlModule:ControlModule) ASSERT controlModule.majorSerialNumber IS UNIQUE;
+CREATE CONSTRAINT ON (outputReceptacle:OutputReceptacle) ASSERT outputReceptacle.majorSerialNumber IS UNIQUE;
+/*"-------------------------------------------------------------------------------------------------------"*/
+
+/*"-------------------------------------------------------------------------------------------------------"*/
+USING PERIODIC COMMIT
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/Power/iPduSpec.csv"
+AS iPduline
+WITH collect(iPduline) AS dataGulp2
+
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/Power/RaritaniPduIdentyData.csv"
+AS InstanceLine
+WITH collect(InstanceLine)AS dataGulp,dataGulp2
+LIMIT 50
+UNWIND dataGulp AS Gulp
+UNWIND dataGulp2 AS Gulp2
+MERGE (cm:controlModule{Tag:"ControlModule", MAC:Gulp.MAC, majorSerialNumber:Gulp.SerialNumber, ipAddress:Gulp.ControlUnitIP })
+MERGE (ipdu:iPDU{Tag:"iPDU", SerialNumber:Gulp.SerialNumber, Model:Gulp.Model})
+CREATE UNIQUE (cm)-[:Controls]->(ipdu)
+MERGE (masterCB:MasterCB{Tag:"MasterCB", name:Gulp2.MasterCB, majorSerialNumber:Gulp.SerialNumber})
+CREATE UNIQUE (masterCB)-[:Supplies]->(ipdu)
+
+MERGE (mcb:MCB{Tag:"ModuleCB", id:Gulp2.ModuleCB, phase:Gulp2.Phase, majorSerialNumber:Gulp.SerialNumber})
+CREATE UNIQUE (masterCB)-[:Supplies]->(mcb)
+
+MERGE (opSkt:OPR{Tag:"Socket", id:Gulp2.OutputReceptacle, Phase:Gulp2.Phase, MaxLoad:Gulp2.MaxCurrent, SocketType:Gulp2.ReceptacleType})
+CREATE UNIQUE (mcb)-[:Supplies]->(opSkt)
+RETURN cm,ipdu,masterCB,mcb,opSkt
+/*"--------------------------------------------------------------------------------------------------------------------------------------"*/

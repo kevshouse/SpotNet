@@ -1,0 +1,127 @@
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Cypher to ETL data into Neo4j to load iPDU (inteligent Power Distribution Unit)  ---"*/
+/*"--- internal configuration and instance data 										---"*/ 
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Kevin Anderson 25/08/2015 														---"*/
+/*"--- Sprint Job ID17 Define Rack to PDU relationships                                 ---"*/
+/*"--- Extended to Power Busways, PDUs, and UPSs                                        ---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- iPDU Queri info --------------------------------------------------------------------"*/
+
+/*"-------- Pattern -----------------------"*/
+(masterCB:MasterCB)-[:Supplies]->(ipdu:iPDU)
+(masterCB:MasterCB)-[:Supplies]->(mcb:MCB)
+(mcb:MCB)-[:Supplies]->(opSkt:OPR)
+(cm:controlModule)-[:Controls]->(ipdu:iPDU)
+/*"----------------------------------------"*/
+
+/*"------ Properties ----------------------"*/
+/*" Property 		Node/s		"*/
+MAC:				controlModule
+ipAddress:			controlModule
+majorSerialNumber:	controlModule, MCB, MasterCB
+SerialNumber:		iPDU
+Maker:				-
+Model:				iPDU
+Count: 				-
+Phase:				MCB
+OprSupplyVoltage:	OPR
+SocketType:			OPR
+OprLoad:			OPR
+Number:				OPR
+MaxCurrent:			OPR
+McbSupplyVoltage:	MasterCB
+MaxLineCurrent:		MasterCB
+Load:				MasterCB
+Tag:				All Nodes
+
+Tag:"MasterCB"
+Tag:"ModuleCB"
+Tag:"Socket"
+Tag:"ControlModule"
+Tag:"iPDU"
+Tag:"Socket"
+/*"--------------------------"*/
+
+/*" Headings from CSV ETL files "*/
+MasterCB
+NomMcbInputVoltage
+McbSupplyVoltage
+Phase
+MaxLineCurrent
+Load
+ModuleCB
+OutputReceptacle
+OprSupplyVoltage
+ReceptacleType
+MaxCurrent
+OprLoad
+/*"--------------------------"*/
+
+/*"-- Patterns used in ETL script --"*/
+(masterCB:MasterCB{Tag:"MasterCB", name:Gulp2.MasterCB, majorSerialNumber:Gulp.SerialNumber})-[:Supplies]->
+(mcb:MCB{Tag:"ModuleCB", id:Gulp2.ModuleCB, phase:Gulp2.Phase, majorSerialNumber:Gulp.SerialNumber})-[:Supplies]->
+(opSkt:OPR{Tag:"Socket", id:Gulp2.OutputReceptacle, Phase:Gulp2.Phase, MaxLoad:Gulp2.MaxCurrent, SocketType:Gulp2.ReceptacleType})
+
+(cm:controlModule{Tag:"ControlModule", MAC:Gulp.MAC, majorSerialNumber:Gulp.SerialNumber, ipAddress:Gulp.ControlUnitIP })-[:Controls]->
+(ipdu:iPDU{Tag:"iPDU", SerialNumber:Gulp.SerialNumber, Model:Gulp.Model})
+
+(opSkt:OPR{Tag:"Socket", id:Gulp2.OutputReceptacle, Phase:Gulp2.Phase, MaxLoad:Gulp2.MaxCurrent, SocketType:Gulp2.ReceptacleType})
+
+/*"-------------- Pattern Matching tips from Cypher Ref Card ---------------------"*/
+
+(n)-->(m)
+A relationship from n to m exists.
+(n:Person)
+
+Matches nodes with the label Person.
+(n:Person:Swedish)
+
+Matches nodes which have both Person and Swedish labels.
+(n:Person {name: {value}})
+
+Matches nodes with the declared properties.
+(n:Person)-->(m)
+
+Node n labeled Person has a relationship to m.
+(n)--(m)
+
+A relationship in any direction between n and m.
+(m)<-[:KNOWS]-(n)
+
+A relationship from n to m of type KNOWS exists.
+(n)-[:KNOWS|LOVES]->(m)
+
+A relationship from n to m of type KNOWS or LOVES exists.
+(n)-[r]->(m)
+
+Bind an identifier to the relationship.
+(n)-[*1..5]->(m)
+
+Variable length paths.
+(n)-[*]->(m)
+
+Any depth. See the performance tips.
+(n)-[:KNOWS]->(m {property: {value}})
+
+Match or set properties in MATCH, CREATE, CREATE UNIQUE or MERGE clauses.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
