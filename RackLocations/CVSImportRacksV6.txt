@@ -1,0 +1,79 @@
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Cypher to ETL data into Neo4j to load Rack placement location data               ---"*/
+/*"---                                          										---"*/ 
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Kevin Anderson 28/08/2015 														---"*/
+/*"---                                  												---"*/
+/*"--- 												                                    ---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"---	Problem: Original ETL file and CSV made the locations look as though they were	---"*/
+/*"---  instances of racks and not simply places to put racks.							---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Before First Use	 ------------------------------------------------------------------"*/
+/*"--- The Following Constraint must be active before submitting the following queries  ---"*/
+/*"----------------------------------------------------------------------------------------"*/
+
+CREATE CONSTRAINT ON (rackBase:rackBase) ASSERT rackBase.code IS UNIQUE;
+
+CREATE CONSTRAINT ON (row:Row) ASSERT row.code IS UNIQUE;
+
+CREATE CONSTRAINT ON (h:Hall) ASSERT h.code IS UNIQUE;
+
+CREATE CONSTRAINT ON (f:flr) ASSERT f.code IS UNIQUE;
+
+CREATE CONSTRAINT ON (n:Building) ASSERT n.name IS UNIQUE;
+
+/*--" It is wise to execute the above Constraint commands before the rest"---*/
+/*--" of this script, they need to be established before the script runs!"---*/															 "---*/
+
+
+USING PERIODIC COMMIT
+
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/RackLocations/RackLocationsD.csv"
+AS line /* Variable to hold our CSV */
+WITH collect(line)AS dataGulp
+LIMIT 500
+UNWIND dataGulp AS Gulp
+
+/* FIND or Create rackBase Nodes */
+MERGE (rackBase:RackBase{raCode:(Gulp.RackBase + Gulp.Row + 
+Gulp.Front + Gulp.Rear + Gulp.TileNumber + Gulp.Hall + Gulp.Floor + 
+Gulp.Building)})
+ON CREATE SET
+rackBase.name = (Gulp.Building + "-Fl" + Gulp.Floor + "-" + Gulp.RackBase),
+rackBase.Front = Gulp.Front, rackBase.Back = Gulp.Rear, 
+rackBase.TileNumber = Gulp.TileNumber,
+rackBase.Tag = "RackBase"
+
+/* Find or Create Row Nodes */
+MERGE (row:Row{roCode:(Gulp.Row + Gulp.Front + Gulp.Hall + Gulp.Floor + 
+Gulp.Building)})
+ON CREATE SET
+row.name = (Gulp.Building + "-Fl" + Gulp.Floor + "-" + Gulp.rackBase),
+row.Front = Gulp.Front, row.Tag = "Row"
+
+/* Find or CREATE Hall Nodes */
+MERGE (hall:Hall{halCode:(Gulp.Building + "-Fl" + Gulp.Floor + "-H-" + 
+Gulp.Hall) })
+ON CREATE SET hall.number = "H" + Gulp.Hall, hall.Tag = "Hall", 
+hall.name = "Hall " + Gulp.Hall
+
+/* Find or Create Floor Nodes */
+MERGE (flr:flr{flrCode:(Gulp.Building + "-Fl-" + Gulp.Floor)})
+ON CREATE SET flr.number = "F" + Gulp.Floor, flr.Tag = "Flr",
+flr.name = "Floor " + Gulp.Floor
+
+/* Find or Create Building Nodes */
+MERGE (build:Building{name:(Gulp.Building)})
+ON CREATE SET build.name = Gulp.Building,build.Tag = "Building"
+WITH rackBase,row,hall,flr,build
+
+/* Create and wire up Relationships */
+CREATE UNIQUE  (build)<-[r5:HallIsIn]-(hall)<-[r6:rackBaseIsIn]-(rackBase)
+CREATE UNIQUE (rackBase)-[r1:PartOf]->(row)-[r2:RowIsIn]->
+(hall)-[r3:HallIsOn]->(flr)-[r4:PartOf]->(build)
+
+RETURN rackBase,row,hall,flr,build
+
