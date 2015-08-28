@@ -1,0 +1,55 @@
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Cypher to ETL data into Neo4j to load iPDU (inteligent Power Distribution Unit)  ---"*/
+/*"--- internal configuration and instance data 										---"*/ 
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Kevin Anderson 25/08/2015 														---"*/
+/*"--- Sprint Job ID17 Define Rack to PDU relationships                                 ---"*/
+/*"--- Extended to Power Busways, PDUs, and UPSs                                        ---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"---	Problem: Incorrect linking of OPR nodes											---"*/
+/*"---	When looking at a single iPDU subgraph things look OK, but when multiple iPDUs  ---"*/
+/*"---	are viewed then it becomes clear that the OPR nodes link all iPDUs in the graph ---"*/
+/*"---	fix: Add majorSerialNumber to OPR node 											---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"---  Problem: Missing DocURI, Fixed by adding 'ON CREATE SET' and a URI in the script---"*/
+/*"---  as it is not in the CSV	- Note: This is only patching, a better solution is to  ---"*/
+/*"---	alter the CSV to hold the URI  													---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Before First Use	 --------------------------------------------------------------------------------"*/
+/*"--- The Following Constraint must be active before submitting the following queries                ---"*/
+/*"------------------------------------------------------------------------------------------------------"*/
+CREATE CONSTRAINT ON (masterCB:MasterCB) ASSERT masterCB.majorSerialNumber IS UNIQUE;
+CREATE CONSTRAINT ON (moduleCB:ModuleCB) ASSERT moduleCB.majorSerialNumber IS UNIQUE;
+CREATE CONSTRAINT ON (ipdu:iPdu) ASSERT ipdu.SerialNumber IS UNIQUE;
+CREATE CONSTRAINT ON (controlModule:ControlModule) ASSERT controlModule.majorSerialNumber IS UNIQUE;
+CREATE CONSTRAINT ON (outputReceptacle:OutputReceptacle) ASSERT outputReceptacle.majorSerialNumber IS UNIQUE;
+/*"-------------------------------------------------------------------------------------------------------"*/
+
+/*"-------------------------------------------------------------------------------------------------------"*/
+USING PERIODIC COMMIT 100
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/Power/iPduSpec.csv"
+AS iPduline
+WITH collect(iPduline) AS dataGulp2
+LIMIT 42
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/Power/RaritaniPduIdentyData.csv"
+AS InstanceLine
+WITH collect(InstanceLine)AS dataGulp,dataGulp2
+LIMIT 10
+UNWIND dataGulp AS Gulp
+UNWIND dataGulp2 AS Gulp2
+MERGE (cm:controlModule{Tag:"ControlModule", MAC:Gulp.MAC, majorSerialNumber:Gulp.SerialNumber, ipAddress:Gulp.ControlUnitIP })
+MERGE (ipdu:iPDU{Tag:"iPDU", SerialNumber:Gulp.SerialNumber, Model:Gulp.Model})
+ON CREATE SET iPDU.DocURI = "http://support.raritan.com/px3/version-3.0.3/user-guides/PX3-0B-v3.0-E.pdf"
+CREATE UNIQUE (cm)-[:Controls]->(ipdu)
+MERGE (masterCB:MasterCB{Tag:"MasterCB", name:Gulp2.MasterCB, majorSerialNumber:Gulp.SerialNumber})
+CREATE UNIQUE (masterCB)-[:Supplies]->(ipdu)
+
+MERGE (mcb:MCB{Tag:"ModuleCB", id:Gulp2.ModuleCB, phase:Gulp2.Phase, majorSerialNumber:Gulp.SerialNumber})
+CREATE UNIQUE (masterCB)-[:Supplies]->(mcb)
+
+MERGE (opSkt:OPR{Tag:"Socket", id:Gulp2.OutputReceptacle, Phase:Gulp2.Phase, MaxLoad:Gulp2.MaxCurrent, SocketType:Gulp2.ReceptacleType, majorSerialNumber:Gulp.SerialNumber})
+CREATE UNIQUE (mcb)-[:Supplies]->(opSkt)
+RETURN cm,ipdu,masterCB,mcb,opSkt LIMIT 100
+/*"--------------------------------------------------------------------------------------------------------------------------------------"*/
