@@ -1,6 +1,6 @@
 /*"----------------------------------------------------------------------------------------"*/
-/*"----Goal Here is to create the Rack Master Nodes and associate then with their makers.--"*/
-/*"--- Cypher to ETL data into Neo4j to load iPDU (inteligent Power Distribution Unit)  ---"*/
+/*"----Goal Here is to create the Company Node/s and associate then with their Maker     --"*/
+/*"--- Nodes.                                                                           ---"*/
 /*"--- 																				                                        	---"*/ 
 /*"----------------------------------------------------------------------------------------"*/
 /*"--- Kevin Anderson 25/08/2015 														                            ---"*/
