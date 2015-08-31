@@ -1,3 +1,13 @@
+/*"----------------------------------------------------------------------------------------"*/
+/*"----Goal Here is to create the Rack Master Nodes and associate then with their makers.--"*/
+/*"--- Cypher to ETL data into Neo4j to load iPDU (inteligent Power Distribution Unit)  ---"*/
+/*"--- 																				                                        	---"*/ 
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Kevin Anderson 25/08/2015 														                            ---"*/
+/*"--- In Support of MiniSprint Job IDs 19, 20, 21    					                				---"*/
+/*"--- ETL Company and Product Data, relating companies to those products we have.      ---"*/                                								---"*/
+/*"----------------------------------------------------------------------------------------"*/
+
 /* "Get Raritan Rack iPDU Master Data" */
 LOAD CSV WITH HEADERS FROM
 "https://raw.githubusercontent.com/kevshouse/SpotNet/master/Power/iPduSpec.csv"
@@ -35,3 +45,5 @@ MATCH (c:Company{name:comp.name}), (m:Maker{name:comp.name})
 /* "Relate Company to Maker Nodes" */
 CREATE UNIQUE (c)-[:IsA]->(m)
 RETURN c, m, mkr, comp;
+
+/*-- "The above has been tested and is working -31/08/2015----------------------------------------------" --*/
