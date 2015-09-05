@@ -8,7 +8,7 @@
 /*"--- ETL Company and Product Data, relating companies to those products we have.      ---"*/                                								---"*/
 /*"----------------------------------------------------------------------------------------"*/
 
-/* "Get IBM Rack Master Data" *
+/* "Get IBM Rack Master Data" */
 LOAD CSV WITH HEADERS FROM
 "https://raw.githubusercontent.com/kevshouse/SpotNet/master/RackHardwareTypes/IbmRack7014-B42.csv"
 AS line
