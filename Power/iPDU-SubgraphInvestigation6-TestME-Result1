@@ -41,7 +41,7 @@ UNWIND dataGulp AS Gulp
 UNWIND dataGulp2 AS Gulp2
 MERGE (cm:controlModule{Tag:"ControlModule", MAC:Gulp.MAC, majorSerialNumber:Gulp.SerialNumber, ipAddress:Gulp.ControlUnitIP })
 MERGE (ipdu:iPDU{Tag:"iPDU", SerialNumber:Gulp.SerialNumber, Model:Gulp.Model})
-ON CREATE SET iPDU.DocURI = "http://support.raritan.com/px3/version-3.0.3/user-guides/PX3-0B-v3.0-E.pdf"
+ON CREATE SET ipdu.DocURI = "http://support.raritan.com/px3/version-3.0.3/user-guides/PX3-0B-v3.0-E.pdf"
 CREATE UNIQUE (cm)-[:Controls]->(ipdu)
 MERGE (masterCB:MasterCB{Tag:"MasterCB", name:Gulp2.MasterCB, majorSerialNumber:Gulp.SerialNumber})
 CREATE UNIQUE (masterCB)-[:Supplies]->(ipdu)
