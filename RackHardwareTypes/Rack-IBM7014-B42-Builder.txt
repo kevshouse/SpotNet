@@ -1,6 +1,6 @@
 /*"----------------------------------------------------------------------------------------"*/
-/*"----Goal Here is to create the IBM 7014-B42 insctances and associate them			---"*/
-/*"--- with their Maker Nodes.     														---"*/ 
+/*"----Goal Here is to create the IBM 7014-B42 instances and associate them				---"*/
+/*"--- with their Master Nodes.    														---"*/ 
 /*"---                              		                                            ---"*/
 /*"----------------------------------------------------------------------------------------"*/
 /*"--- Kevin Anderson 25/08/2015 											            ---"*/
