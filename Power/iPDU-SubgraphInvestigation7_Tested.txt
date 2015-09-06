@@ -17,7 +17,7 @@
 /*"----------------------------------------------------------------------------------------"*/
 /*"---	Fixed by placing DocURI in the MERGE, also										---"*/
 /*"---	added `idMaster:"RaritanPX3-5872XV-E2M5P1V2"` to MERGE as this was also missing.---"*/
-/*"---  + Tidied line endings to improve readability. Kevin Anderson 06/09/2015			---"*/
+/*"---  + Tidied line endings to improve readability. Kevin Anderson 06/09/2015		---"*/
 /*"----------------------------------------------------------------------------------------"*/
 /*"----------------------------------------------------------------------------------------"*/
 /*"--- Before First Use	 ------------------------------------------------------------------"*/
