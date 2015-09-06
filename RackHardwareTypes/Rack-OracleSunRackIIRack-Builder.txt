@@ -1,15 +1,15 @@
 /*"----------------------------------------------------------------------------------------"*/
-/*"----Goal Here is to create the OracleSunRackIIRack instances and associate them		---"*/
-/*"--- with their Master Nodes.     													---"*/ 
-/*"---                              		                                            ---"*/
+/*"----Goal Here is to create the OracleSunRackIIRack instances and associate them	---"*/
+/*"--- with their Master Nodes.								---"*/ 
+/*"---                              		                                        ---"*/
 /*"----------------------------------------------------------------------------------------"*/
-/*"--- Kevin Anderson 25/08/2015 											            ---"*/
-/*"--- In Support of MiniSprint Job IDs 19, 20, 21    									---"*/
+/*"--- Kevin Anderson 25/08/2015	 					        ---"*/
+/*"--- In Support of MiniSprint Job IDs 19, 20, 21    					---"*/
 /*"--- ETL Company and Product Data, relating companies to those products we have.      ---"*/                              							
 /*"----------------------------------------------------------------------------------------"*/
-/*"--- Kevin Anderson 06/09/2015									                 	---"*/
+/*"--- Kevin Anderson 06/09/2015				                 	---"*/
 /*"--- Added code to relate  instances to master nodes, and also tidied line endings.	---"*/
-/*"--- See warning about java heap towards the bottom of this file!						---"*/  
+/*"--- See warning about java heap towards the bottom of this file!			---"*/  
 /*"----------------------------------------------------------------------------------------"*/
 USING PERIODIC COMMIT 10
 LOAD CSV WITH HEADERS FROM
@@ -75,9 +75,9 @@ CREATE UNIQUE (ppL)-[:PartOf]->(iR)<-[:PartOf]-(ppR)
 
 RETURN iR, usl, ppL, ppR
 /*"----------------------------------------------------------------------------------------"*/
-/*"--- There is an extrme likelyhood of runnning short of Java heap space!        		---"*/ 
+/*"--- There is an extrme likelyhood of runnning short of Java heap space!        	---"*/ 
 /*"--- If this happens with the above code, then create just the rack instances without	---"*/
-/*"--- USLOTs or pdu pockets, then run the code below.					        		---"*/ 
+/*"--- USLOTs or pdu pockets, then run the code below.					---"*/ 
 /*"----------------------------------------------------------------------------------------"*/
 USING PERIODIC COMMIT 10
 LOAD CSV WITH HEADERS FROM
