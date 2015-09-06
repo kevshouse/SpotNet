@@ -76,8 +76,8 @@ MERGE (opSkt:OPR{Tag:"Socket",
 		majorSerialNumber:Gulp.SerialNumber})
 CREATE UNIQUE (mcb)-[:Supplies]->(opSkt)
 RETURN cm,
-		ipdu,
-		masterCB,
-		mcb,
-		opSkt LIMIT 100
-/*"--------------------------------------------------------------------------------------------------------------------------------------"*/
+	ipdu,
+	masterCB,
+	mcb,
+	opSkt LIMIT 100
+/*"----------------------------------------------------------------------------------------------"*/
