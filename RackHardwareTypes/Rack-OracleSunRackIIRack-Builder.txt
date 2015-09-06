@@ -1,0 +1,133 @@
+/*"----------------------------------------------------------------------------------------"*/
+/*"----Goal Here is to create the OracleSunRackIIRack instances and associate them		---"*/
+/*"--- with their Master Nodes.     													---"*/ 
+/*"---                              		                                            ---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Kevin Anderson 25/08/2015 											            ---"*/
+/*"--- In Support of MiniSprint Job IDs 19, 20, 21    									---"*/
+/*"--- ETL Company and Product Data, relating companies to those products we have.      ---"*/                              							
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Kevin Anderson 06/09/2015									                 	---"*/
+/*"--- Added code to relate  instances to master nodes, and also tidied line endings.	---"*/
+/*"--- See warning about java heap towards the bottom of this file!						---"*/  
+/*"----------------------------------------------------------------------------------------"*/
+USING PERIODIC COMMIT 10
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/RackLocations/RackSerialNumbers.csv"
+AS line
+WITH  line LIMIT 110
+WITH collect(line) AS dataGulpInstance
+UNWIND dataGulpInstance AS GulpInstance
+/*"--- 	Basic rack instances created here -------------------------------------------------"*/  
+MERGE (instRack:InstanceRack{Tag:"RackInstance",
+	Serial:GulpInstance.Serial, 
+	Maker:GulpInstance.Maker,
+	idMaster:GulpInstance.idMaster})
+WITH GulpInstance, dataGulpInstance, instRack
+
+/* "Needs to be related to MasterNode here .. (instRack:InstanceRack)-[r:IsA]->(Master{idMaster:"Oracle CorporationSUN RACK II"})" */
+MATCH (mN:Master{idMaster:GulpInstance.idMaster})
+CREATE UNIQUE (instRack)-[r:IsA]->(mN)
+WITH GulpInstance, dataGulpInstance
+
+/* "The U-Slots "*/
+MATCH (iR:InstanceRack)
+/* "Do we still need this check for existing relationships as constraints are controlling uniquness? " */
+WHERE NOT (iR)<-[:PartOf]-(:USlot) AND iR.Maker = "IBM"
+WITH DISTINCT iR, GulpInstance, dataGulpInstance
+
+/* "Get IBM Rack Master Data" */
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/RackHardwareTypes/OracleSunRackIIRack.csv"
+AS line
+
+WITH iR, GulpInstance, dataGulpInstance, line LIMIT 1000
+WITH collect(line) AS dataGulpOracle, iR, GulpInstance, dataGulpInstance
+UNWIND dataGulpOracle AS GulpOracle
+/* " Create as many U-Slots as there are in the CSV's 'TopU' column " */
+/* " Set up variables " */
+WITH ["U"] AS uName, GulpOracle, toInt(GulpOracle.TopU) AS topU, iR, GulpInstance
+
+/* " Important; the MajorSerial of the Ulot, needs to have an increment" */
+/* " otherwise constraints will be broken."*/
+/* " this code achieves that - MajorSerial:GulpInstance.Serial+":"+r" */
+FOREACH (r IN range(1,topU) | MERGE (:USlot 
+	{MajorSerial:GulpInstance.Serial+":"+r,
+	uNum:r, uName:uName[r % size(uName)]+":"+r}))
+//RETURN GulpInstance.Serial
+/* " To find the correct USLOT we need a regex on the MajorSerial which is the "*/
+/* " form `7F48-6CCC-2253-47A5:9` where `:9 indicates the u-number` "*/
+WITH GulpInstance, GulpInstance.Serial AS GiS, 
+	GulpInstance.Serial + ".*" AS GiSm
+	
+MERGE (ppL:PduPocketLeft{Tag:"PduPocketLeft",
+	MajorSerial:GulpInstance.Serial})
+MERGE (ppR:PduPocketRight{Tag:"PduPocketRight", 
+	MajorSerial:GulpInstance.Serial})
+WITH GulpInstance, GiS, GiSm, ppL, ppR
+
+MATCH (iR:InstanceRack{Serial:GulpInstance.Serial}),(usl:USlot)
+WHERE usl.MajorSerial =~ GiSm
+/*" RETURN iR,usl" */
+
+CREATE UNIQUE (iR)<-[:PartOf]-(usl)
+CREATE UNIQUE (ppL)-[:PartOf]->(iR)<-[:PartOf]-(ppR)
+
+RETURN iR, usl, ppL, ppR
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- There is an extrme likelyhood of runnning short of Java heap space!        		---"*/ 
+/*"--- If this happens with the above code, then create just the rack instances without	---"*/
+/*"--- USLOTs or pdu pockets, then run the code below.					        		---"*/ 
+/*"----------------------------------------------------------------------------------------"*/
+USING PERIODIC COMMIT 10
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/RackLocations/RackSerialNumbers.csv"
+AS line
+WITH  line LIMIT 110
+WITH collect(line) AS dataGulpInstance
+UNWIND dataGulpInstance AS GulpInstance
+/*"----------------------------------------------------------------------------------------"*/
+
+/* "Get Oracle Rack Master Data" */
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/RackHardwareTypes/OracleSunRackIIRack.csv"
+AS line
+
+WITH GulpInstance, dataGulpInstance, line LIMIT 1000
+WITH collect(line) AS dataGulpOracle, GulpInstance, dataGulpInstance
+UNWIND dataGulpOracle AS GulpOracle
+/* " Create as many U-Slots as there are in the CSV's 'TopU' column " */
+/* " Set up variables " */
+WITH ["U"] AS uName, GulpOracle, toInt(GulpOracle.TopU) AS topU, GulpInstance
+/*"----------------------------------------------------------------------------------------"*/
+FOREACH (r IN range(1,topU) | MERGE (:USlot 
+	{MajorSerial:GulpInstance.Serial+":"+r,
+	uNum:r, uName:uName[r % size(uName)]+":"+r}))
+/*"----------------------------------------------------------------------------------------"*/
+WITH GulpInstance, GulpInstance.Serial AS GiS, 
+	GulpInstance.Serial + ".*" AS GiSm
+	
+MERGE (ppL:PduPocketLeft{Tag:"PduPocketLeft",
+	MajorSerial:GulpInstance.Serial})
+MERGE (ppR:PduPocketRight{Tag:"PduPocketRight", 
+	MajorSerial:GulpInstance.Serial})
+/*"----------------------------------------------------------------------------------------"*/
+WITH GulpInstance, GiS, GiSm, ppL, ppR
+
+MATCH (iR:InstanceRack{Serial:GulpInstance.Serial}),(usl:USlot)
+WHERE usl.MajorSerial =~ GiSm
+CREATE UNIQUE (iR)<-[:PartOf]-(usl)
+CREATE UNIQUE (ppL)-[:PartOf]->(iR)<-[:PartOf]-(ppR)
+/*"----------------------------------------------------------------------------------------"*/
+RETURN iR, usl, ppL, ppR
+/*"----------------------------------------------------------------------------------------"*/
+/*",¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,¬_,"*/
+/* " Cypher Snippets " */
+/* "Match and return the whole chain back to the maker." */
+MATCH (ppL:PduPocketLeft)-[r]-(iR:InstanceRack)-[r1]-(ppR:PduPocketRight),(usl:USlot)-[r2]-(iR)-[r3:IsA]->(mN:Master) 
+RETURN ppL, iR,	ppR, mN, usl, r, r1, r2, r3 
+/* "To match and return the whole chain back to the maker." */
+MATCH (ppL:PduPocketLeft)-[r]-(iR:InstanceRack)-[r1]-(ppR:PduPocketRight),(usl:USlot)-[r2]-(iR)-[r3:IsA]->(mN:Master) RETURN ppL,r,iR,ppR,mN,r1,r2,r3
+/* "To match and delete the whole chain back to the master (leaving the naster intact)." */
+MATCH (ppL:PduPocketLeft)-[r]-(iR:InstanceRack)-[r1]-(ppR:PduPocketRight),(usl:USlot)-[r2]-(iR)-[r3:IsA]->(mN:Master) DELETE ppL,r,iR,ppR,r1,r2,r3
+/* "To match and delete the unrelated whole chain back to the maker." */
