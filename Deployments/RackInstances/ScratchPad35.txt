@@ -1,0 +1,84 @@
+/*"----------------------------------------------------------------------------------------"*/
+/*"----Goal Here is to create the Rack Deployments.										---"*/
+/*"--- 							    													---"*/
+/*"--- Job ID 20                             		                                   	---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Kevin Anderson 06/09/2015 											            ---"*/
+/*"--- In Support of MiniSprint Job IDs 19, and 21    									---"*/
+/*"--- ETL Rack Deployments into floor locations.      									---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- Updates 																			---"*/
+/*"--- Kevin Anderson /09/2015										                 	---"*/
+/*"---  																				---"*/
+/*"--- 																					---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- 		Data Source 																---"*/
+/*"--- Rack Instances and Rackbase Codes from											---"*/
+/*"--- https://raw.githubusercontent.com/kevshouse/SpotNet/								---"*/
+/*"--- master/RackLocations/RackSerialNumbers.csv										---"*/
+/*"--- 																					---"*/
+/*"--- 		Key Source Data																---"*/
+/*"--- Serial																			---"*/
+/*"--- RackBase																			---"*/
+/*"--- 		Ancillary Source Data 														---"*/
+/*"--- idMaster																			---"*/
+/*"--- Maker																			---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- 		Deployment Node Metadata													---"*/
+/*"--- Label		"Deployment"/"Plan"													---"*/
+/*"--- Property		Tag:"Deployment" -For the first deployments set to "initial"		---"*/
+/*"--- property 	HEAD:True/False														---"*/
+/*"--- Property		Tag:"Deployment"/"Plan"												---"*/
+/*"--- Property		Code:Serial + ":" + RackBase										---"*/
+/*"--- Property		idMaster:idMaster													---"*/
+/*"--- Property		instanceSerial:instanceNode.serial									---"*/
+/*"--- Property		Maker:Maker															---"*/
+/*"--- Property		DateActive:		-Use long time for now, later a time tree.			---"*/
+/*"--- Property		DateApproved:	-Ditto.												---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- 		Relationships																---"*/
+/*"--- (Instance)-[:HasA]->(Deployment)-[:IsAt]->(Location)								---"*/
+/*"--- (Deployment)<-[:Old]-(Deployment)												---"*/
+/*"----------------------------------------------------------------------------------------"*/
+/*"--- There's a need for some logic here otherwise this script will brute over			---"*/
+/*"--- established deployments without setting HEAD labels. 							---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- Load Source Data ---"*/
+USING PERIODIC COMMIT 10
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/RackLocations/RackSerialNumbers.csv"
+AS line
+WITH  line LIMIT 110
+WITH collect(line) AS dataGulpInstance
+UNWIND dataGulpInstance AS GulpInstance
+
+/*"--- Find exisiting deployments & Bind existind Nodes ---"*/
+/*"--- Bind instance node---"*/
+MATCH (iR:instanceRack),(rb:RackBase)
+WITH iR, rB
+OPTIONAL MATCH (lastDep:Deployment{HEAD:TRUE,iR.serial})
+WITH lastDep, rB, iR
+OPTIONAL MATCH (dTest:Deployment{iR.serial})	
+WITH lastDep, iR, rB, dTest
+/*"--- Check if first deployment, if so make node and 1 relationship ---"*
+FOREACH
+	(ignoreMe IN CASE WHEN dTest IS NULL THEN [1] ELSE [] END |
+	MERGE (dep:Deployment{Tag:"Deployment",number:1, HEAD:TRUE})
+	CREATE UNIQUE (rB)<-[:IsAt]-(dep)<-[:HasA]-(iR)
+	)
+/*"--- Not first deployment, make node & 2 relationships ---"*
+FOREACH
+	(ignoreMe IN CASE WHEN dTest IS NOT NULL THEN [1] ELSE [] END | 
+	MERGE  (dep:Deployment{Tag:"Deployment",number:lastDep.number + 1, HEAD:TRUE})
+	ON CREATE SET lastDep.HEAD = FALSE
+	CREATE UNIQUE (rB)<-[:IsAt]-(dep)-[:Old]->(lastDep)
+	CREATE UNIQUE (iR)-[:HasA]->(Dep)
+	)
+
+RETURN d, rB, lastDep;
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- Improvements still needed before use.											---"*/
+/*"--- Only an initial sample of the none properties has so far been included.			---"*/
+/*"--- The LOAD CSV section needs completing.											---"*/
+/*"----------------------------------------------------------------------------|-----------"*/	
+
