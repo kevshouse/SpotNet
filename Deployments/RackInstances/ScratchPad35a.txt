@@ -1,0 +1,133 @@
+/*"----------------------------------------------------------------------------------------"*/
+/*"----Goal Here is to create the Rack Deployments.										---"*/
+/*"--- 							    													---"*/
+/*"--- Job ID 20                             		                                   	---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- Kevin Anderson 06/09/2015 											            ---"*/
+/*"--- In Support of MiniSprint Job IDs 19, and 21    									---"*/
+/*"--- ETL Rack Deployments into floor locations.      									---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- Updates 																			---"*/
+/*"--- Kevin Anderson 8/09/2015. Added variables to accept data from CSV.              	---"*/
+/*"--- Tested CSV import & initial MATCH OK.											---"*/
+/*"--- 																					---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- 		Data Source 																---"*/
+/*"--- Rack Instances and Rackbase Codes from											---"*/
+/*"--- https://raw.githubusercontent.com/kevshouse/SpotNet/								---"*/
+/*"--- master/RackLocations/RackSerialNumbers.csv										---"*/
+/*"--- 																					---"*/
+/*"--- 		Key Source Data																---"*/
+/*"--- Serial																			---"*/
+/*"--- RackBase																			---"*/
+/*"--- 		Ancillary Source Data 														---"*/
+/*"--- idMaster																			---"*/
+/*"--- Maker																			---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- 		Deployment Node Metadata													---"*/
+/*"--- Label		"Deployment"/"Plan"													---"*/
+/*"--- Property		Tag:"Deployment" -For the first deployments set to "initial"		---"*/
+/*"--- property 	HEAD:True/False														---"*/
+/*"--- Property		Tag:"Deployment"/"Plan"												---"*/
+/*"--- Property		Code:Serial + ":" + RackBase										---"*/
+/*"--- Property		idMaster:idMaster													---"*/
+/*"--- Property		instanceSerial:instanceNode.serial									---"*/
+/*"--- Property		Maker:Maker															---"*/
+/*"--- Property		DateActive:		-Use long time for now, later a time tree.			---"*/
+/*"--- Property		DateApproved:	-Ditto.												---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- 		Relationships																---"*/
+/*"--- (Instance)-[:HasA]->(Deployment)-[:IsAt]->(Location)								---"*/
+/*"--- (Deployment)<-[:Old]-(Deployment)												---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- There's a need for some logic here otherwise this script will brute over			---"*/
+/*"--- established deployments without setting HEAD labels. 							---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- Load Source Data ---"*/
+USING PERIODIC COMMIT 1
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/RackLocations/RackSerialNumbers.csv"
+AS line
+WITH  line LIMIT 500
+WITH collect(line) AS dataGulpDep
+UNWIND dataGulpDep AS GulpDep
+/*"--- Do not set uniqueness constraints on Code, it maybe reused ---"*/
+WITH GulpDep.Serial + ":" + GulpDep.RackBase AS Code,
+	GulpDep.idMaster AS idMaster,
+	GulpDep.Serial   AS instanceSerial,
+	GulpDep.RackBase AS rackBase
+/*"--- Find exisiting deployments & Bind existind Nodes ---"*/
+/*"--- Bind instance node---"*/
+MATCH (iR:InstanceRack{Serial:instanceSerial}),(rB:RackBase{name:rackBase})
+WITH iR, rB, instanceSerial, Code
+/*"--- Above working as required ---"*/
+OPTIONAL MATCH (lastDep:Deployment{HEAD:TRUE,instanceSerial:iR.Serial})
+WITH lastDep, rB, iR, instanceSerial, Code
+OPTIONAL MATCH (dTest:Deployment{instanceSerial:iR.Serial})
+WITH lastDep, iR, rB, dTest, instanceSerial, Code
+/*"--- Check if first deployment, if so make node and 2 relationship ---"*/
+FOREACH
+	(ignoreMe IN CASE WHEN dTest IS NULL THEN [1] ELSE [] END |
+	MERGE (dep:Deployment{
+			Tag:"Deployment",
+			DepCode:Code,
+			number:1,
+			idMaster:iR.idMaster,
+			instanceSerial:iR.Serial,
+			Maker:iR.Maker,
+			DateActive:timestamp(),
+			DateApproved:1000000000000,
+			FirstCase:TRUE,
+			HEAD:TRUE
+			}
+		)
+	CREATE UNIQUE (rB)<-[:IsAt]-(dep)<-[:HasA]-(iR)
+	)
+/*"--- Not first deployment, make node & 3 relationships ---"*/
+FOREACH
+	(ignoreMe IN CASE WHEN dTest IS NOT NULL THEN [1] ELSE [] END | 
+	MERGE (dep:Deployment{
+			Tag:"Deployment",
+			DepCode:Code,
+			number:lastDep.number + 1,
+			idMaster:iR.idMaster,
+			instanceSerial:iR.Serial,
+			Maker:iR.Maker,
+			DateActive:timestamp(),
+			DateApproved:1000000000000,
+			SecondCase:TRUE,
+			HEAD:TRUE
+			}
+		)
+	ON CREATE SET lastDep.HEAD = FALSE
+	CREATE UNIQUE (rB)<-[:IsAt]-(dep)-[:Old]->(lastDep)
+	CREATE UNIQUE (iR)-[:HasA]->(dep)
+	)
+
+WITH iR, rB, dTest, instanceSerial
+OPTIONAL MATCH (iR)-[rha:HasA]->(d:Deployment)
+OPTIONAL MATCH (rB)<-[ria:IsAt]-(d2:Deployment)<-[rha1:HasA]-(iR)
+OPTIONAL MATCH(d3:Deployment)-[ro:Old]->(d4:Deployment)
+RETURN iR, rB, d, d2, d3, d4, rha, ria, rha1, ro
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- Utils																			---"*/
+/*"--- To delete ALL Deployment nodes in the entire graph run..							---"*/
+/*"--- MATCH ()-[r]-(dep:Deployment)-[r1]-() DELETE dep, r, r1							---"*/
+/*"---------------						  -------------------------------------|-----------"*/
+/*"--- To diplay ALL Deployment nodes in the entire graph run..							---"*/
+/*"--- MATCH ()-[r:HasA]->(dep:Deployment)-[r1:IsAt]-() RETURN dep, r, r1				---"*/
+/*"---------------						  -------------------------------------|-----------"*/
+/*"--- To diplay Only Current Deployment nodes in the entire graph run..				---"*/
+/*"--- MATCH ()-[r:HasA]->(dep:Deployment{HEAD:TRUE})-[r1:IsAt]-() RETURN dep, r, r1	---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- To diplay Only Current Deployment nodes of IBM in the entire graph run..			---"*/
+/*"--- MATCH ()-[r:HasA]->																---"*/
+/*"--- (dep:Deployment{HEAD:TRUE,Maker:"IBM"})-[r1:IsAt]-() RETURN dep, r, r1			---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- -------------------------------------											---"*/
+/*"--- O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O---"*/
+/*"--- -------------------------------------											---"*/
+/*"----------------------------------------------------------------------------|-----------"*/	
+
+To diplay Only Current Deployment nodes in the entire graph run..
+MATCH ()-[r:HasA]->(dep:Deployment{HEAD:TRUE})-[r1:IsAt]-() RETURN dep, r, r1
