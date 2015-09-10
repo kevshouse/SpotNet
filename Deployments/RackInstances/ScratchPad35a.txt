@@ -1,14 +1,14 @@
 /*"----------------------------------------------------------------------------------------"*/
 /*"----Goal Here is to create the Rack Deployments.										---"*/
-/*"--- 							    													---"*/
-/*"--- Job ID 19                             		                                   	---"*/
+/*"--- 																					---"*/
+/*"--- Job ID 20																		---"*/
 /*"----------------------------------------------------------------------------|-----------"*/
-/*"--- Kevin Anderson 06/09/2015 											            ---"*/
-/*"--- In Support of MiniSprint Job IDs 19, and 21    									---"*/
-/*"--- ETL Rack Deployments into floor locations.      									---"*/
+/*"--- Kevin Anderson 06/09/2015 														---"*/
+/*"--- In Support of MiniSprint Job IDs 19, and 21										---"*/
+/*"--- ETL Rack Deployments into floor locations.										---"*/
 /*"----------------------------------------------------------------------------|-----------"*/
 /*"--- Updates 																			---"*/
-/*"--- Kevin Anderson 8/09/2015. Added variables to accept data from CSV.              	---"*/
+/*"--- Kevin Anderson 8/09/2015. Added variables to accept data from CSV.				---"*/
 /*"--- Tested CSV import & initial MATCH OK.											---"*/
 /*"--- 																					---"*/
 /*"----------------------------------------------------------------------------|-----------"*/
@@ -127,7 +127,7 @@ RETURN iR, rB, d, d2, d3, d4, rha, ria, rha1, ro
 /*"--- -------------------------------------											---"*/
 /*"--- O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O-0-O---"*/
 /*"--- -------------------------------------											---"*/
-/*"----------------------------------------------------------------------------|-----------"*/	
+/*"----------------------------------------------------------------------------|-----------"*/
 
 To diplay Only Current Deployment nodes in the entire graph run..
 MATCH ()-[r:HasA]->(dep:Deployment{HEAD:TRUE})-[r1:IsAt]-() RETURN dep, r, r1
