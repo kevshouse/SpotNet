@@ -1,0 +1,142 @@
+/*"----------------------------------------------------------------------------------------"*/
+/*"----Goal Here is to deploy iPDUs into the Deployed Rack Pockets.                     ---"*/
+/*"---                                                                                  ---"*/
+/*"--- Job ID 23                                                                        ---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- Kevin Anderson 15/09/2015                                                        ---"*/
+/*"--- In Support of MiniSprint Job ID 23                                               ---"*/
+/*"--- Deploy iPDUs into the Deployed Rack Pockets.                                     ---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- Updates                                                                          ---"*/
+/*"--- Kevin Anderson 15/09/2015.                                                       ---"*/
+/*"--- Created two CSV files (One for right and one for left poserpocket deployments),  ---"*/
+/*"--- both uploaded to GitHub. 1 hour's work.                                          ---"*/
+/*"--- Added key column to CSVs and "FOREACH" check logic looking for pre-existing Keys.---"*/
+/*"--- 4 hour's work.                                                                   ---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"---      Data Source                                                                 ---"*/
+/*"--- iPDU Instances to deployed rack instances from                                   ---"*/
+/*"--- "https://raw.githubusercontent.com/kevshouse/SpotNet/master/Power/               ---"*/
+/*"--- iPDUDeploymentsLeft.csv"                                                         ---"*/
+/*"---  and                                                                             ---"*/
+/*"--- "https://raw.githubusercontent.com/kevshouse/SpotNet/master/Power/               ---"*/
+/*"--- iPDUDeploymentsRight.csv"                                                        ---"*/
+/*"---      Key Source Data                                                             ---"*/
+/*"--- Rack Serial   Col Heading RackSerial                                             ---"*/
+/*"--- iPDU Serial   Col Heading LeftPowerPocket/RightPowerPocket                       ---"*/
+/*"---      Ancillary Source Data                                                       ---"*/
+/*"--- PduPocketLeft MajorSerial    Col Heading LefthtPowerPocket                       ---"*/
+/*"--- PduPocketRight MajorSerial   Col Heading RightPowerPocket                        ---"*/
+/*"--- Rack Maker                   Col Heading Maker                                   ---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"---      Deployment Node Metadata                                                    ---"*/
+/*"--- Label        "Deployment"/"Plan"                                                 ---"*/
+/*"--- Property     Tag:"Deployment" -For the first deployments set to "initial"        ---"*/
+/*"--- property     HEAD:True/False                                                     ---"*/
+/*"--- Property     Tag:"Deployment"/"Plan"                                             ---"*/
+/*"--- Property     Code:LeftPowerPocket + ":" + RackSerial                             ---"*/
+/*"--- Property     idMaster:idMaster                                                   ---"*/
+/*"--- Property     instanceSerial:instanceNode.serial                                  ---"*/
+/*"--- Property     Maker:Maker                                                         ---"*/
+/*"--- Property     DateActive:    -Use long time for now, later a time tree.           ---"*/
+/*"--- Property     DateApproved:    -Ditto.                                            ---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"---      Relationships                                                               ---"*/
+/*"--- (Instance)-[:HasA]->(Deployment)-[:IsAt]->(Location)                             ---"*/
+/*"--- (Deployment)<-[:Old]-(Deployment)                                                ---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"---      Constraints                                                                 ---"*/
+/*"---      Set UNIQUE constraint on :Deployment{Key}                                   ---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- There is a need for some logic here otherwise this script will brute over        ---"*/
+/*"--- established deployments without setting HEAD labels.                             ---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+/*"--- But for one or two small differences, this is a similar task to Job id 20        ---"*/
+/*"--- and should be solved in a similar manner to maxmise code resuse.                 ---"*/
+/*"----------------------------------------------------------------------------|-----------"*/
+
+CREATE CONSTRAINT ON (dep:Deployment) ASSERT dep.Key IS UNIQUE;
+
+/*"--- Load Source Data For deployments into Left Pockets ---"*/
+
+USING PERIODIC COMMIT 1
+LOAD CSV WITH HEADERS FROM
+"https://raw.githubusercontent.com/kevshouse/SpotNet/master/Power/iPDUDeploymentsLeft.csv"
+AS line
+WITH  line LIMIT 108
+WITH collect(line) AS dataGulpDep
+UNWIND dataGulpDep AS GulpDep
+/*"--- Do not set uniqueness constraints on Code, it maybe reused ---"*/
+WITH GulpDep.LeftPowerPocket + ":" + GulpDep.RackBase AS Code,
+    GulpDep.idMaster AS idMaster,
+    GulpDep.RackSerial AS RackSerial,
+    GulpDep.RackBase AS rackBase,
+	GulpDep.LeftPowerPocket AS iPduSerial,
+	GulpDep.Maker AS maker,
+	GulpDep.key AS key
+
+/*"--- Find exisiting deployments & Bind existind Nodes ---"*/
+/*"--- Bind instance node---"*/
+MATCH (instPdu:iPDU{SerialNumber:iPduSerial}), (iR:InstanceRack{Serial:RackSerial}), (iRpL:PduPocketLeft{MajorSerial:RackSerial})
+WITH iR, iRpL, instPdu, RackSerial, iPduSerial, Code, maker, idMaster, key
+/*"--- Above working as required ---"*/
+OPTIONAL MATCH (lastDep:Deployment{HEAD:TRUE,instanceSerial:iPduSerial})
+WITH lastDep, iR, iRpL, instPdu, RackSerial, iPduSerial, Code, maker, idMaster, key
+OPTIONAL MATCH (dTest:Deployment{instanceSerial:iPduSerial})// Subsequence check
+WITH lastDep, iR, iRpL, instPdu, RackSerial, iPduSerial, Code, dTest, maker, idMaster, key
+//RETURN dTest
+OPTIONAL MATCH (kTest:Deployment{Key:key})// Existing Key check
+WITH lastDep, iR, iRpL, instPdu, RackSerial, iPduSerial, Code, dTest, maker, idMaster, key, kTest	
+	/*"--- Check if a Key already exists and skip over if so. ---"*/
+FOREACH
+
+	(ignoreMe IN CASE WHEN kTest IS NULL THEN [1] ELSE [] END |
+	FOREACH
+	/*"--- Check if first deployment, if so make node and 2 relationship ---"*/
+		(ignoreMe IN CASE WHEN dTest IS NULL THEN [1] ELSE [] END |
+		MERGE (dep:Deployment{
+            Tag:"Deployment",
+			Key:key,
+            DepCode:Code,
+            number:1,
+            idMaster:idMaster,
+            instanceSerial:iPduSerial,
+            Maker:maker,
+            DateActive:timestamp(),
+            DateApproved:1000000000000,
+            FirstCase:TRUE,
+            HEAD:TRUE
+        }
+        )
+		CREATE UNIQUE (iRpL)<-[:IsAt]-(dep)<-[:HasA]-(instPdu) //Should be at the left pocket node of iR!
+    )
+	/*"--- Check if subsequent deployment, if so make node and 3 relationship ---"*/
+	FOREACH
+		(ignoreMe IN CASE WHEN dTest IS NOT NULL THEN [1] ELSE [] END | 
+		MERGE (dep:Deployment{
+            Tag:"Deployment",
+			Key:key,
+            DepCode:Code,
+            number:lastDep.number + 1,
+            idMaster:idMaster,
+            instanceSerial:iPduSerial,
+            Maker:maker,
+            DateActive:timestamp(),
+            DateApproved:1000000000000,
+            SecondCase:TRUE,
+            HEAD:TRUE
+            }
+        )
+		ON CREATE SET lastDep.HEAD = FALSE
+		CREATE UNIQUE (iRpL)<-[:IsAt]-(dep)-[:Old]->(lastDep)
+		CREATE UNIQUE (instPdu)-[:HasA]->(dep)
+    )
+ )
+WITH lastDep, iR, iRpL, instPdu
+	
+OPTIONAL MATCH (instPdu)-[:HasA]->(d:Deployment)
+OPTIONAL MATCH (iRpL)<-[:IsAt]-(d)<-[:HasA]-(instPdu)	
+OPTIONAL MATCH (d1:Deployment)-[:Old]->(d2:Deployment)
+
+RETURN iRpL, d, d1, d2
